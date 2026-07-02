@@ -5,7 +5,6 @@ from fastapi.responses import HTMLResponse
 import uvicorn, discord
 from discord.ext import commands, tasks
 from discord.ui import Button, View
-from discord import app_commands
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 DB_NAME = "verification.db"
@@ -83,12 +82,11 @@ PUBLIC_URL = ""
 class VerifyView(View):
     def __init__(self, url):
         super().__init__(timeout=None)
-        self.add_item(Button(label="Verify now", style=discord.ButtonStyle.primary, emoji="🔗", url=url))
-        why_btn = Button(label="Why?", style=discord.ButtonStyle.secondary)
-        async def why_callback(interaction):
-            await interaction.response.send_message("Verification is required to prevent bots and keep the server safe!", ephemeral=True)
-        why_btn.callback = why_callback
-        self.add_item(why_btn)
+        self.add_item(Button(label="Verify now", style=discord.ButtonStyle.primary, url=url))
+        why = Button(label="Why?", style=discord.ButtonStyle.secondary)
+        async def why_cb(i): await i.response.send_message("Prevents bots!", ephemeral=True)
+        why.callback = why_cb
+        self.add_item(why)
 
 @bot.event
 async def on_ready():
@@ -101,26 +99,18 @@ async def on_ready():
     check.start()
 
 @bot.command(name="verify")
-async def verify_prefix(ctx):
-    token = create_verification(str(ctx.author.id), str(ctx.guild.id))
-    link = f"{PUBLIC_URL}/verify/{token}"
-    embed = discord.Embed(
-        title="🤖 Verification required",
-        description=f"To gain access to **{ctx.guild.name}** you need to prove you are a human by completing verification. Click the button below to get started!",
-        color=discord.Color.blue()
-    )
-    await ctx.send(embed=embed, view=VerifyView(link))
+async def verify_cmd(ctx):
+    t = create_verification(str(ctx.author.id), str(ctx.guild.id))
+    link = f"{PUBLIC_URL}/verify/{t}"
+    e = discord.Embed(title="🤖 Verification required", description=f"To gain access to **{ctx.guild.name}** you need to prove you are a human by completing verification. Click the button below to get started!", color=discord.Color.blue())
+    await ctx.send(embed=e, view=VerifyView(link))
 
-@bot.tree.command(name="verify", description="Send the verification message")
-async def verify_slash(interaction: discord.Interaction):
-    token = create_verification(str(interaction.user.id), str(interaction.guild.id))
-    link = f"{PUBLIC_URL}/verify/{token}"
-    embed = discord.Embed(
-        title="🤖 Verification required",
-        description=f"To gain access to **{interaction.guild.name}** you need to prove you are a human by completing verification. Click the button below to get started!",
-        color=discord.Color.blue()
-    )
-    await interaction.response.send_message(embed=embed, view=VerifyView(link))
+@bot.tree.command(name="verify", description="Send verification message")
+async def verify_slash(i: discord.Interaction):
+    t = create_verification(str(i.user.id), str(i.guild.id))
+    link = f"{PUBLIC_URL}/verify/{t}"
+    e = discord.Embed(title="🤖 Verification required", description=f"To gain access to **{i.guild.name}** you need to prove you are a human by completing verification. Click the button below to get started!", color=discord.Color.blue())
+    await i.response.send_message(embed=e, view=VerifyView(link))
 
 @bot.command(name="logs")
 @commands.has_permissions(administrator=True)
